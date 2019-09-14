@@ -3,13 +3,41 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <errno.h>
+
 
 //Global option values
 char inputFile[50] = "input.dat";
 char outputFile[50] = "output.dat";
 int duration = 10;
 
+//Global file pointers
+FILE * outfilePtr;
+FILE * infilePtr;
 
+void signalHandler(int sig){
+	fclose(outfilePtr);
+	fclose(infilePtr);
+	printf("Inside sig handler");
+	exit(0);
+}
+
+//I got this code from https://lowlevelbits.org/handling-timeouts-in-child-processes/
+pid_t pidTimer(int *status){
+	pid_t pid = 0;
+	while ( (pid == waitpid(WAIT_ANY, status, 0)) == -1) {
+		if(errno == EINTR) {
+			continue;
+		}
+		else {
+			perror("waitpid");
+			exit(1);
+		}
+	}
+	return pid;
+}
 
 bool subSetSum(int arr[], int n, int sum, bool print,bool recursionTop){
 	//Ending case
@@ -34,16 +62,15 @@ bool subSetSum(int arr[], int n, int sum, bool print,bool recursionTop){
 	if(subSetSum(arr, n-1, sum-arr[n-1], print, false)){
 		if(print){
 			//print arr[n-1]
-			printf("%d ", arr[n-1]);
-			FILE * out;
-			out = fopen(outputFile, "a");
+			outfilePtr = fopen(outputFile, "a");
+			signal(SIGABRT, signalHandler);
 			if(recursionTop){
-				fprintf(out,"%d = %d",arr[n-1],sum);
+				fprintf(outfilePtr,"%d = %d",arr[n-1],sum);
 			}
 			else{
-				fprintf(out,"%d + ",arr[n-1]);
+				fprintf(outfilePtr,"%d + ",arr[n-1]);
 			}
-			fclose(out);
+			fclose(outfilePtr);
 
 		}
 		return true;
@@ -100,7 +127,6 @@ int main(int argc, char *argv[]) {
 		}
 	}
 		
-	FILE *infilePtr;
 	infilePtr = fopen(inputFile,"r");
 	char * task = NULL;
 	size_t len = 0;
@@ -117,97 +143,124 @@ int main(int argc, char *argv[]) {
 		perror("ERROR: logParse: Reading first number from file failed: ");
 		exit(2);
 	}
-	//fork the number of subtasks times
-	subtasks = 3;
 	
 	//open outputfile for writing to clear it.
-	FILE *outfilePtr;
 	outfilePtr = fopen(outputFile,"w");
 	fclose(outfilePtr);
 
 	int i = 0;
 	int firstNumInTask = -1;
+	
+	//array to store the pid's of children
+	int *pidArray = (int*)malloc(sizeof(int) *subtasks);
+	
 	for(i = 0; i < subtasks; i++){
 		if(getline(&task, &len, infilePtr) != -1){
-			//split the task up and count the elements into i
-			int size = 0;
-        		char line[100] = "";
-        		strncpy(line,task,sizeof(line)-1);
-        		line[99] = "\0";
-        		char *ptr = strtok(line, " ");
-        		while(ptr != NULL){
-        		        ptr = strtok(NULL, " ");
-        		        size++;
-        		}
-
-			//now that we know the number of elements, do the actual split.
-        		char newLine[100] = "";
-        		strncpy(newLine,task,sizeof(newLine)-1);
-        		newLine[99] = "\0";
-			//make the buffer 1 less than the numbers
-			//to ignore the first number which is the sum
-        		int *numArray = (int*)malloc(sizeof(int) * size - 1);
-        		char *newPtr = strtok(newLine, " ");
-			//get the sum
-			firstNumInTask = atoi(newPtr);
-			newPtr = strtok(NULL, " ");
+			//fork timer
+			pid_t timerPID = fork();
+			if(timerPID == 0){
+				sleep(1);
+				exit(0);
+			}
+			//fork here the number of subtask times.
+			int childPID = fork();
+			if(childPID == 0){
+				//child process
 			
-        		size = 0;
-        		while (newPtr != NULL){
-        		        numArray[size] = atoi(newPtr);
-                		size++;
-               			newPtr = strtok(NULL, " ");
-        		}
-			
-        		if(subSetSum(numArray,size,firstNumInTask,false,false)){
-			//	printf("\nThere is a sum!\n");
-				FILE * outfilePtr;
-				outfilePtr = fopen(outputFile, "a");	
-				fprintf(outfilePtr, "%ld: ",getpid());
-				fclose(outfilePtr);
-	                       // printf("%ld: ",getpid());
-				subSetSum(numArray,size,firstNumInTask,true,true);
-				                       	
-        		        //return selectedNums;
-        		        //find the sum by sending combinations into isZeroSum once its true continue. else break
-        /*		        int k = 0;
-				int m = 0;
-				for(k = 0; k < i; k++){
-					int sum = 0;
-					//k is starting point
-					for(m = k; m < i; m++){
-						if(k == m){
-							continue;
-						}
-						sum += numArray[m];
-						
-					}
-				} 
-				*/
-       			}
-        		else {
-				FILE * outfilePtr;
-                                outfilePtr = fopen(outputFile, "a");
+				//split the task up and count the elements into i
+				int size = 0;
+	        		char line[100] = "";
+	        		strncpy(line,task,sizeof(line)-1);
+	        		line[99] = "\0";
+	        		char *ptr = strtok(line, " ");
+	        		while(ptr != NULL){
+	        		        ptr = strtok(NULL, " ");
+	        		        size++;
+	        		}
+	
+				//now that we know the number of elements, do the actual split.
+        			char newLine[100] = "";
+        			strncpy(newLine,task,sizeof(newLine)-1);
+        			newLine[99] = "\0";
+				//make the buffer 1 less than the numbers
+				//to ignore the first number which is the sum
+        			int *numArray = (int*)malloc(sizeof(int) * size - 1);
+        			char *newPtr = strtok(newLine, " ");
+				//get the sum
+				firstNumInTask = atoi(newPtr);
+				newPtr = strtok(NULL, " ");
 				
-                		fprintf(outfilePtr, "%ld: No subset of numbers summed to %d",getpid(),firstNumInTask);
-				fclose(outfilePtr);
+        			size = 0;
+        			while (newPtr != NULL){
+        			        numArray[size] = atoi(newPtr);
+                			size++;
+               				newPtr = strtok(NULL, " ");
+        			}
 				
-        		}
+        			if(subSetSum(numArray,size,firstNumInTask,false,false)){
+				//	printf("\nThere is a sum!\n");
+					outfilePtr = fopen(outputFile, "a");	
+					fprintf(outfilePtr, "%ld: ",getpid());
+					fclose(outfilePtr);
+	        	               // printf("%ld: ",getpid());
+					subSetSum(numArray,size,firstNumInTask,true,true);
+					                       	
+        			        //return selectedNums;
+        			        //find the sum by sending combinations into isZeroSum once its true continue. else break
+       				}
+        			else {
+                	                outfilePtr = fopen(outputFile, "a");	
+                			fprintf(outfilePtr, "%ld: No subset of numbers summed to %d",getpid(),firstNumInTask);
+					fclose(outfilePtr);
+					
+        			}
+				
+				free(numArray);
+				exit(0);
+			}
+			else{ 
+			//parent process
+			//this function will either kill the process after timeout or will just wait on it.
+			int status = 0;
+			pid_t firstCompleted = pidTimer(&status);
+			//printf("%s",firstCompleted);
+			if(firstCompleted == timerPID){
+				//kill child
+				kill(childPID, SIGABRT);
+				//print message to file
+				printf("killing child\n");
+				outfilePtr = fopen(outputFile, "a");
+				fprintf(outfilePtr, "%ld: No valid subset found after 1 second",childPID);
+				fclose(outfilePtr);
+			}
+			else if( firstCompleted == childPID){
+				printf("killed timer\n");
+				kill(timerPID, SIGKILL);
+			}
+				
+			pidArray[i] = childPID;
 			
-			//fprintf(outfilePtr, "%s",line);
-			//int *numArray = getSumSubtasks(line);
-			/*int j = 0;
-			for(j = 0; j < size; j++){
-				fprintf(outfilePtr, "%d ",numArray[j]);	
-			}*/
-			free(numArray);
+			}
+		
 		}
-		FILE * outfilePtr;
+		else{
+		perror("ERROR: logParse: Expected a line but did not find one in file. ");
+		exit(0);
+		}
+		//end the line in the file
                 outfilePtr = fopen(outputFile, "a");
-		fprintf(outfilePtr, "\n");
-		printf("\n");
-		fclose(outfilePtr);
+                fprintf(outfilePtr, "\n");
+                fclose(outfilePtr);
+
 	}
+	
+        outfilePtr = fopen(outputFile, "a");
+	int k = 0;
+	for(k = 0; k < subtasks; k++){
+		fprintf(outfilePtr, "Child PID: %ld\n",pidArray[k]);
+	}
+        fprintf(outfilePtr, "Parent PID: %ld\n",getpid());
+        fclose(outfilePtr);
 	fclose(infilePtr);
 	
 	return 0;
