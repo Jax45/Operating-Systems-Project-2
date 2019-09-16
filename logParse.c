@@ -17,10 +17,31 @@ int duration = 10;
 FILE * outfilePtr;
 FILE * infilePtr;
 
-void signalHandler(int sig){
+//Global Child PID for access in durationHandler
+pid_t childPID;
+
+void durationHandler(int sig){
+	//kill children processes;
+	//since parent calls this kill the only child process
+	kill(childPID,SIGKILL);
+	
+	//NOTE this may cause a seg fault do we need this?
+	//close and reopen to clean the file of partial data.	
+	//fclose(outfilePtr);
+	//??????????
+	
+	outfilePtr = fopen(outputFile, "w");
+	fprintf(outfilePtr, "The process timed out after %d second(s)\n",duration);
 	fclose(outfilePtr);
 	fclose(infilePtr);
-	printf("Inside sig handler");
+	exit(0);
+}
+
+void alarmHandler(int sig){
+	outfilePtr = fopen(outputFile, "a");
+        fprintf(outfilePtr, "%ld: No valid subset found after 1 second",getpid());
+	fclose(outfilePtr);
+	fclose(infilePtr);
 	exit(0);
 }
 
@@ -63,7 +84,7 @@ bool subSetSum(int arr[], int n, int sum, bool print,bool recursionTop){
 		if(print){
 			//print arr[n-1]
 			outfilePtr = fopen(outputFile, "a");
-			signal(SIGABRT, signalHandler);
+	//		signal(SIGABRT, signalHandler);
 			if(recursionTop){
 				fprintf(outfilePtr,"%d = %d",arr[n-1],sum);
 			}
@@ -126,7 +147,9 @@ int main(int argc, char *argv[]) {
 				exit(1);
 		}
 	}
-		
+	//first set the timer for the whole process.
+	alarm(duration);
+	signal(SIGALRM,durationHandler);
 	infilePtr = fopen(inputFile,"r");
 	char * task = NULL;
 	size_t len = 0;
@@ -157,14 +180,17 @@ int main(int argc, char *argv[]) {
 	for(i = 0; i < subtasks; i++){
 		if(getline(&task, &len, infilePtr) != -1){
 			//fork timer
-			pid_t timerPID = fork();
+		/*	pid_t timerPID = fork();
 			if(timerPID == 0){
 				sleep(1);
 				exit(0);
 			}
-			//fork here the number of subtask times.
-			int childPID = fork();
+		*/	//fork here the number of subtask times.
+			childPID = fork();
 			if(childPID == 0){
+				
+				alarm(1);
+				signal(SIGALRM,alarmHandler);
 				//child process
 			
 				//split the task up and count the elements into i
@@ -222,7 +248,8 @@ int main(int argc, char *argv[]) {
 			//parent process
 			//this function will either kill the process after timeout or will just wait on it.
 			int status = 0;
-			pid_t firstCompleted = pidTimer(&status);
+			status = wait(NULL);
+		/*	pid_t firstCompleted = pidTimer(&status);
 			//printf("%s",firstCompleted);
 			if(firstCompleted == timerPID){
 				//kill child
@@ -237,7 +264,7 @@ int main(int argc, char *argv[]) {
 				printf("killed timer\n");
 				kill(timerPID, SIGKILL);
 			}
-				
+		*/
 			pidArray[i] = childPID;
 			
 			}
