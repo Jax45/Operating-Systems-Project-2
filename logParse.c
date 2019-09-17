@@ -23,14 +23,10 @@ pid_t childPID;
 void durationHandler(int sig){
 	//kill children processes;
 	//since parent calls this kill the only child process
-	kill(childPID,SIGKILL);
-	
-	//NOTE this may cause a seg fault do we need this?
-	//close and reopen to clean the file of partial data.	
-	//fclose(outfilePtr);
-	//??????????
+	kill(childPID,SIGABRT);
 	
 	outfilePtr = fopen(outputFile, "w");
+	printf("The process timed out after %d second(s)\n",duration);
 	fprintf(outfilePtr, "The process timed out after %d second(s)\n",duration);
 	fclose(outfilePtr);
 	fclose(infilePtr);
@@ -39,6 +35,7 @@ void durationHandler(int sig){
 
 void alarmHandler(int sig){
 	outfilePtr = fopen(outputFile, "a");
+	printf("%ld: No valid subset found after 1 second",getpid());
         fprintf(outfilePtr, "%ld: No valid subset found after 1 second",getpid());
 	fclose(outfilePtr);
 	fclose(infilePtr);
@@ -86,9 +83,11 @@ bool subSetSum(int arr[], int n, int sum, bool print,bool recursionTop){
 			outfilePtr = fopen(outputFile, "a");
 	//		signal(SIGABRT, signalHandler);
 			if(recursionTop){
+				printf("%d = %d",arr[n-1],sum);
 				fprintf(outfilePtr,"%d = %d",arr[n-1],sum);
 			}
 			else{
+				printf("%d + ",arr[n-1]);
 				fprintf(outfilePtr,"%d + ",arr[n-1]);
 			}
 			fclose(outfilePtr);
@@ -155,12 +154,7 @@ int main(int argc, char *argv[]) {
 	size_t len = 0;
 	int subtasks = 0;
 	if(getline(&task, &len, infilePtr) != -1){
-		printf("from file: %s",task);
 		subtasks = atoi(task);
-		if(subtasks > 10 || subtasks < 0){
-			printf("The number of subtasks was not between 1 and 10 inclusive ending program");
-			exit(1);
-		}
 	}
 	else{
 		perror("ERROR: logParse: Reading first number from file failed: ");
@@ -179,25 +173,18 @@ int main(int argc, char *argv[]) {
 	
 	for(i = 0; i < subtasks; i++){
 		if(getline(&task, &len, infilePtr) != -1){
-			//fork timer
-		/*	pid_t timerPID = fork();
-			if(timerPID == 0){
-				sleep(1);
-				exit(0);
-			}
-		*/	//fork here the number of subtask times.
+			
 			childPID = fork();
 			if(childPID == 0){
-				
+				//timer for subtask
 				alarm(1);
 				signal(SIGALRM,alarmHandler);
 				//child process
-			
 				//split the task up and count the elements into i
 				int size = 0;
 	        		char line[100] = "";
 	        		strncpy(line,task,sizeof(line)-1);
-	        		line[99] = "\0";
+	        		line[99] = '\0';
 	        		char *ptr = strtok(line, " ");
 	        		while(ptr != NULL){
 	        		        ptr = strtok(NULL, " ");
@@ -207,7 +194,7 @@ int main(int argc, char *argv[]) {
 				//now that we know the number of elements, do the actual split.
         			char newLine[100] = "";
         			strncpy(newLine,task,sizeof(newLine)-1);
-        			newLine[99] = "\0";
+        			newLine[99] = '\0';
 				//make the buffer 1 less than the numbers
 				//to ignore the first number which is the sum
         			int *numArray = (int*)malloc(sizeof(int) * size - 1);
@@ -226,6 +213,7 @@ int main(int argc, char *argv[]) {
         			if(subSetSum(numArray,size,firstNumInTask,false,false)){
 				//	printf("\nThere is a sum!\n");
 					outfilePtr = fopen(outputFile, "a");	
+					printf("%ld: ",getpid());
 					fprintf(outfilePtr, "%ld: ",getpid());
 					fclose(outfilePtr);
 	        	               // printf("%ld: ",getpid());
@@ -236,6 +224,7 @@ int main(int argc, char *argv[]) {
        				}
         			else {
                 	                outfilePtr = fopen(outputFile, "a");	
+					printf("%ld: No subset of numbers summed to %d",getpid(),firstNumInTask);
                 			fprintf(outfilePtr, "%ld: No subset of numbers summed to %d",getpid(),firstNumInTask);
 					fclose(outfilePtr);
 					
@@ -249,22 +238,6 @@ int main(int argc, char *argv[]) {
 			//this function will either kill the process after timeout or will just wait on it.
 			int status = 0;
 			status = wait(NULL);
-		/*	pid_t firstCompleted = pidTimer(&status);
-			//printf("%s",firstCompleted);
-			if(firstCompleted == timerPID){
-				//kill child
-				kill(childPID, SIGABRT);
-				//print message to file
-				printf("killing child\n");
-				outfilePtr = fopen(outputFile, "a");
-				fprintf(outfilePtr, "%ld: No valid subset found after 1 second",childPID);
-				fclose(outfilePtr);
-			}
-			else if( firstCompleted == childPID){
-				printf("killed timer\n");
-				kill(timerPID, SIGKILL);
-			}
-		*/
 			pidArray[i] = childPID;
 			
 			}
@@ -276,6 +249,7 @@ int main(int argc, char *argv[]) {
 		}
 		//end the line in the file
                 outfilePtr = fopen(outputFile, "a");
+		printf("\n");
                 fprintf(outfilePtr, "\n");
                 fclose(outfilePtr);
 
@@ -284,8 +258,10 @@ int main(int argc, char *argv[]) {
         outfilePtr = fopen(outputFile, "a");
 	int k = 0;
 	for(k = 0; k < subtasks; k++){
+		printf("Child PID: %ld\n",pidArray[k]);
 		fprintf(outfilePtr, "Child PID: %ld\n",pidArray[k]);
 	}
+	printf("Parent PID: %ld\n",getpid());
         fprintf(outfilePtr, "Parent PID: %ld\n",getpid());
         fclose(outfilePtr);
 	fclose(infilePtr);
