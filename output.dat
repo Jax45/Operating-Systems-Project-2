@@ -1,3 +1,13 @@
-24420: 10 + 20 = 30
-24420: No subset of numbers summed to 100
-24420: 1 = 1
+31251: 10 + 20 = 30
+31252: No subset of numbers summed to 100
+31253: 1 = 1
+31254: No valid subset found after 1 second
+31258: 1 + 1 + 1 + 1 + 1 = 5
+No valid subset found after 1 second
+Child PID: 31251
+Child PID: 31252
+Child PID: 31253
+Child PID: 31254
+Child PID: 31258
+Child PID: 31259
+Parent PID: 31250

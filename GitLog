@@ -1,0 +1,33 @@
+commit 433baf8c878bbb773a8b73b2e45985e39d98e96a
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Wed Sep 18 18:06:02 2019 -0500
+
+    Changed the file handling to have the files open throughout the process and only close them at the end or after a timeout.
+    also made the buffer sizes = to 256
+
+commit 8f4eead99de6e49ec6619b2f442f339f80354117
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Tue Sep 17 09:30:42 2019 -0500
+
+    Added printing to the screen and changed the abort signal from kill to abort signal.
+
+commit a2e47a8fd44a3b517179e5e7832dcbda7c37613e
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Sun Sep 15 19:35:53 2019 -0500
+
+    I added an alarm to go off in the child process after 1 second and
+    the appropriate message to be displayed if the subtask takes too long.
+    also I added a similar alarm to the parent process that then kills the
+    child process after the duration and closes the files.
+
+commit aeb8115e7c9b05dda3f569d223b33c08e3a2d4df
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Fri Sep 13 20:25:44 2019 -0500
+
+    Added forking and the correct formatting to the file output. still working on the timeout of the child process to be graceful. Not sure how to do it. added a function to that hasnt worked yet that uses waitpid().
+
+commit 8a1ad1a5c192b48552736e379fd0cf9c42833c2f
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Fri Sep 13 17:40:53 2019 -0500
+
+    Initial commit. Options are working and the subset is printing to file correctly, lots of code is commented out and needs to be deleted.

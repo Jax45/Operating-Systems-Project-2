@@ -1,24 +1,24 @@
 //Name: Jackson Hoenig
 //Class: CMPSCI-4780-001
 //Description:
-/*
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- */
+//This program takes in data from an input file that is set with the option -i.
+//if -i is not given then the default input file name is set to "input.dat". furthermore,
+//The program also takes in options -o and -t, -o specifies the output file which by
+//default is set to "output.dat", and -t specifies the time allowed for the entire program to run before it timesout
+//and terminates. this timer is set at the very start of the program and can trigger at anytime which then
+//calls the signal handler which closes the files and kills the child process.
+//before timeing out. The format for the input file will have the first line be the number of subtask lines following
+//that first line. once the number of subtasks is retrieved from the first line the program
+//goes into a loop. at the start of the loop the input file is read and a child process is forked off
+//to work on that subtask line. while the child is working the parent process will wait. The child
+//process will then start a timer of 1 second and if it takes longer than that timer the child process
+//prints a message and ends prematurely. if the child process is faster than 1 second then it looks for
+//a subset of numbers that add up to the first number of the line. Note that the subset does not include the
+//first number that will be used as the sum. that subset is then printed to screen or a message is printed that
+//says that there was no subset sum possible. after all of this, the process ends. After all of the processes
+//are completed the pid's of the child processes and the parent process are displayed and the program terminates.
 
-
-
-
+//Import libraries
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -40,7 +40,9 @@ FILE * infilePtr;
 
 //Global Child PID for access in durationHandler
 pid_t childPID;
-
+//Handler for if the parent alarm goes off. it then kills children 
+//reopens output and writes a message, then closes both input and output
+//and exits.
 void durationHandler(int sig){
 	//kill children processes;
 	//since parent calls this kill the only child process
@@ -54,14 +56,17 @@ void durationHandler(int sig){
 	fclose(infilePtr);
 	exit(0);
 }
-
+//handler for just the child process's 1 second timeout.
+//just prints a message and exits.
 void alarmHandler(int sig){
-	
-	printf("%ld: No valid subset found after 1 second",getpid());
-        fprintf(outfilePtr, "%ld: No valid subset found after 1 second\n",getpid());
+	printf("No valid subset found after 1 second");
+        fprintf(outfilePtr, "No valid subset found after 1 second\n");
 	exit(0);
 }
-
+//this function is the function from GeeksForGeeks website but it has been modified
+//the variable print determines if the function will print the data to the file or not.
+//the bool recursionTop determines what level is the top level in order to correctly
+//display the equation.
 bool subSetSum(int arr[], int n, int sum, bool print, bool recursionTop){
 	//Ending case
 	if(sum == 0){
@@ -85,8 +90,6 @@ bool subSetSum(int arr[], int n, int sum, bool print, bool recursionTop){
 	if(subSetSum(arr, n-1, sum-arr[n-1], print, false)){
 		if(print){
 			//print arr[n-1]
-			
-	//		signal(SIGABRT, signalHandler);
 			if(recursionTop){
 				printf("%d = %d",arr[n-1],sum);
 				fprintf(outfilePtr,"%d = %d\n",arr[n-1],sum);
@@ -95,10 +98,11 @@ bool subSetSum(int arr[], int n, int sum, bool print, bool recursionTop){
 				printf("%d + ",arr[n-1]);
 				fprintf(outfilePtr,"%d + ",arr[n-1]);
 			}
-			
-
 		}
 		return true;
+	}
+	else{
+		return false;
 	} 
 }
 
@@ -106,10 +110,6 @@ bool subSetSum(int arr[], int n, int sum, bool print, bool recursionTop){
 int main(int argc, char *argv[]) {
         //variable for option switch
         int opt;
-        //default indentation is set to 4 spaces
-        int indentation = 4;
-        //to keep track of options and their optargs
-        int numOfOptargs = 0;
         //use getopt to iterate through each option.
         while((opt = getopt(argc, argv, "hi:o:t:")) != -1){
         	switch(opt){
@@ -119,7 +119,13 @@ int main(int argc, char *argv[]) {
 					"\n-h --Help option."
 					"\n-i --Input file option takes in an argument for the input file name."
 					"\n-o --Output file option takes in an argument for the output file name."
-					"\n-t --Timeout set option, takes in a number for the timeout duration in seconds.\n");
+					"\n-t --Timeout set option, takes in a number for the timeout duration in seconds.\n"
+					"Default values:\n"
+					"Timeout default to 10 seconds\n"
+					"output.dat and input.dat are default output and input files respectively\n"
+					"Normal Running:\n"
+					"Expected to read from input file number of subtasks, then read that many more lines from file.\n"
+					"Output file is then wrote to the calculations of those subtasks or a timeout message if the timeout is exceeded.\n");
 				exit(1);
 			case 'i':
 				if(strlen(optarg) > 45 || strlen(optarg) < 1){
@@ -136,13 +142,9 @@ int main(int argc, char *argv[]) {
 				strncpy(outputFile,optarg,sizeof(outputFile)); 
 				break;
 			case 't':
-				if(atoi(optarg) > 1000){
-					printf("The number for duration was too big use a smaller number\n");
+				if(atoi(optarg) < 1){
+					printf("The number for duration was negative or 0, please use a positive number less than a maximum integer\n");
 					return 0;	
-				}
-				else if(atoi(optarg) < 0){
-					printf("The number for duration was negative and that makes no sense. please use a positive number for duration.\n");
-					return 0;
 				}
 				duration = atoi(optarg);
 				break;
@@ -154,10 +156,12 @@ int main(int argc, char *argv[]) {
 	//first set the timer for the whole process.
 	alarm(duration);
 	signal(SIGALRM,durationHandler);
+	//open the input file
 	infilePtr = fopen(inputFile,"r");
 	char * task = NULL;
 	size_t len = 0;
 	int subtasks = 0;
+	//get the first line which is the number of subtasks
 	if(getline(&task, &len, infilePtr) != -1){
 		subtasks = atoi(task);
 	}
@@ -181,7 +185,7 @@ int main(int argc, char *argv[]) {
 	
 	for(i = 0; i < subtasks; i++){
 		if(getline(&task, &len, infilePtr) != -1){
-			
+			//fork here the child will be if the childPid == 0.
 			childPID = fork();
 			if(childPID == 0){
 				//timer for subtask
@@ -191,6 +195,8 @@ int main(int argc, char *argv[]) {
 				//split the task up and count the elements into i
 				int size = 0;
 	        		char line[256] = "";
+
+				//this is to know how many elements we can tokenize.
 	        		strncpy(line,task,sizeof(line)-1);
 	        		line[255] = '\0';
 	        		char *ptr = strtok(line, " ");
@@ -210,44 +216,42 @@ int main(int argc, char *argv[]) {
 				//get the sum
 				firstNumInTask = atoi(newPtr);
 				newPtr = strtok(NULL, " ");
-				
+				//set the size back to zero so we can increment it.
         			size = 0;
         			while (newPtr != NULL){
         			        numArray[size] = atoi(newPtr);
                 			size++;
                				newPtr = strtok(NULL, " ");
         			}
-				
+				//don't print just check if there is a sum
         			if(subSetSum(numArray,size,firstNumInTask,false,false)){
 				//	printf("\nThere is a sum!\n");
-					
-					printf("%ld: ",getpid());
-					fprintf(outfilePtr, "%ld: ",getpid());
-					
+					//print the pid
+					printf("%ld: ",(long)getpid());
+					fprintf(outfilePtr, "%ld: ",(long)getpid());
+					//print the sum
 					subSetSum(numArray,size,firstNumInTask,true,true);
 					                       	
         			        //return selectedNums;
         			        //find the sum by sending combinations into isZeroSum once its true continue. else break
        				}
         			else {
-                	                	
-					printf("%ld: No subset of numbers summed to %d",getpid(),firstNumInTask);
-                			fprintf(outfilePtr, "%ld: No subset of numbers summed to %d\n",getpid(),firstNumInTask);
+                	                //if here then there is no sum of the subset
+					printf("%ld: No subset of numbers summed to %d",(long)getpid(),firstNumInTask);
+                			fprintf(outfilePtr, "%ld: No subset of numbers summed to %d\n",(long)getpid(),firstNumInTask);
 					
 					
         			}
-				
+				//free the dynamic array
 				free(numArray);
 				exit(0);
 			}
 			else{ 
 			//parent process
 			//this function will either kill the process after timeout or will just wait on it.
-			int status = 0;
-			status = wait(NULL);
+			wait(NULL);
 			pidArray[i] = childPID;
-			//end the line in the file
-		//	fprintf(outfilePtr, "\n");
+			//end the line on the screen here.
 			printf("\n");
 			}
 		
@@ -256,21 +260,17 @@ int main(int argc, char *argv[]) {
 		perror("ERROR: logParse: Expected a line but did not find one in file. ");
 		exit(0);
 		}
-		//end the line in the file
-     
-		//printf("\n");
-                //fprintf(outfilePtr, "\n");
-     
-
 	}
 	
         int k = 0;
+	//display all the child pid's from the array
 	for(k = 0; k < subtasks; k++){
-		printf("Child PID: %ld\n",pidArray[k]);
-		fprintf(outfilePtr, "Child PID: %ld\n",pidArray[k]);
+		printf("Child PID: %ld\n",(long)pidArray[k]);
+		fprintf(outfilePtr, "Child PID: %ld\n",(long)pidArray[k]);
 	}
-	printf("Parent PID: %ld\n",getpid());
-        fprintf(outfilePtr, "Parent PID: %ld\n",getpid());
+	//display the parent pid
+	printf("Parent PID: %ld\n",(long)getpid());
+        fprintf(outfilePtr, "Parent PID: %ld\n",(long)getpid());
         fclose(outfilePtr);
 	fclose(infilePtr);
 	

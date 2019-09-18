@@ -1,0 +1,66 @@
+Name: Jackson Hoenig
+Class: Operating Systems CmpSci 4760-001
+Project: logParse
+
+How to run project:
+Make sure you have an input file that is called either "input.dat" or another name that is set with -i.
+Also, make sure that input file is formated so that the first line is just a number, with that number of lines
+following that first line. each of those lines needs to be a positive integer white-space separated list.
+
+commands to run:
+$ make clean
+$ ./logParse [-i inputfile] [-o outputfile] [-t time before timeout]
+
+description of project:
+This program takes in data from an input file that is set with the option -i.
+if -i is not given then the default input file name is set to "input.dat". furthermore,
+The program also takes in options -o and -t, -o specifies the output file which by
+default is set to "output.dat", and -t specifies the time allowed for the entire program to run before it timesout
+and terminates. this timer is set at the very start of the program and can trigger at anytime which then
+calls the signal handler which closes the files and kills the child process.
+before timeing out. The format for the input file will have the first line be the number of subtask lines following
+that first line. once the number of subtasks is retrieved from the first line the program
+goes into a loop. at the start of the loop the input file is read and a child process is forked off
+to work on that subtask line. while the child is working the parent process will wait. The child
+process will then start a timer of 1 second and if it takes longer than that timer the child process
+prints a message and ends prematurely. if the child process is faster than 1 second then it looks for
+a subset of numbers that add up to the first number of the line. Note that the subset does not include the
+first number that will be used as the sum. that subset is then printed to screen or a message is printed that
+says that there was no subset sum possible. after all of this, the process ends. After all of the processes
+are completed the pid's of the child processes and the parent process are displayed and the program terminates.
+
+gitlog:
+
+commit 433baf8c878bbb773a8b73b2e45985e39d98e96a
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Wed Sep 18 18:06:02 2019 -0500
+
+    Changed the file handling to have the files open throughout the process and only close them at the end or after a timeout.
+    also made the buffer sizes = to 256
+
+commit 8f4eead99de6e49ec6619b2f442f339f80354117
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Tue Sep 17 09:30:42 2019 -0500
+
+    Added printing to the screen and changed the abort signal from kill to abort signal.
+
+commit a2e47a8fd44a3b517179e5e7832dcbda7c37613e
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Sun Sep 15 19:35:53 2019 -0500
+
+    I added an alarm to go off in the child process after 1 second and
+    the appropriate message to be displayed if the subtask takes too long.
+    also I added a similar alarm to the parent process that then kills the
+    child process after the duration and closes the files.
+
+commit aeb8115e7c9b05dda3f569d223b33c08e3a2d4df
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Fri Sep 13 20:25:44 2019 -0500
+
+    Added forking and the correct formatting to the file output. still working on the timeout of the child process to be graceful. Not sure how to do it. added a function to that hasnt worked yet that uses waitpid().
+
+commit 8a1ad1a5c192b48552736e379fd0cf9c42833c2f
+Author: Jackson Hoenig <Jthkn9@Mail.Umsl.edu>
+Date:   Fri Sep 13 17:40:53 2019 -0500
+
+    Initial commit. Options are working and the subset is printing to file correctly, lots of code is commented out and needs to be deleted.

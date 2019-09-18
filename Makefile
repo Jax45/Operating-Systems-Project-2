@@ -5,10 +5,10 @@ OBJECTS		= logParse.o
 .SUFFIXES: .c .o
 
 $(TARGET): $(OBJECTS)
-	$(CC) -o $@ $(OBJECTS)
+	$(CC) -Wall -o $@ $(OBJECTS)
 
 .c.o: logParse.c
-	$(CC) $(CFLAGS) -c $<
+	$(CC) -Wall $(CFLAGS) -c $<
 
 .PHONY: clean
 clean:
